@@ -2,11 +2,9 @@ import cv2
 import os
 import random
 import glob
+import shutil
 
 from tqdm import tqdm
-
-PATCHES_SIZE = 32
-NUMBER_OF_PATCHES = 60
 
 
 class PatchesCreation(object):
@@ -25,37 +23,45 @@ class PatchesCreation(object):
         x, y = random.randint(upper_bound, lower_bound), random.randint(upper_bound, lower_bound)
         return x, y
 
-    @staticmethod
-    def process_image(path, patches_size=PATCHES_SIZE):
-        cartoon_number = os.path.basename(path).split('.')[0]
-
-        if not os.path.isdir('patches'):
-            os.mkdir('patches')
+    def process_image(self, path):
+        cartoon_frame_number = os.path.basename(path).split('.')[0]
 
         cartoon = os.path.basename(os.path.dirname(path))
-        new_dir = os.path.join('patches', cartoon)
-        if not os.path.isdir(new_dir):
-            os.mkdir(new_dir)
 
         img = cv2.imread(path)
 
         i = 0
-        while i < NUMBER_OF_PATCHES:
-            x, y = PatchesCreation.generate_new_position(patches_size, img.shape[0])
-            patch = img[x: x + patches_size, y: y + patches_size]
+        while i < self.patches:
+            x, y = PatchesCreation.generate_new_position(self.patches_size, img.shape[0])
+            patch = img[x: x + self.patches_size, y: y + self.patches_size]
 
-            cv2.imwrite(os.path.join(new_dir, '{}_{}_{}.png'.format(cartoon_number, x, y)), patch)
+            cv2.imwrite(os.path.join('patches', cartoon, '{}_{}_{}.png'.format(cartoon_frame_number, x, y)), patch)
 
             i += 1
 
-    @staticmethod
-    def process_directory():
-        images = glob.glob('training_set/**/*.png', recursive=True)
+    def process_directory(self, directory):
+        try:
+            shutil.rmtree('patches')
+        except FileNotFoundError:
+            pass
 
-        for path in tqdm(images):
-            PatchesCreation.process_image(path)
+        ignore = shutil.ignore_patterns('*.png')
+        src = os.path.join(os.getcwd(), directory)
+        dst = os.path.join(os.getcwd(), 'patches')
+
+        try:
+            shutil.copytree(src, dst, ignore=ignore)
+        except FileExistsError:
+            pass
+
+        images = glob.glob('{}/**/*.png'.format(directory), recursive=True)
+
+        for img_path in tqdm(images):
+            self.process_image(img_path)
 
 
 if __name__ == '__main__':
+    path = 'training_set'
+
     pc = PatchesCreation()
-    pc.process_directory()
+    pc.process_directory(path)
